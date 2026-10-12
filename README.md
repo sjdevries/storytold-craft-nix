@@ -41,6 +41,25 @@ workflow uses (see `craftFonts` in `flake.nix`).
 > Note: upstream's font policy excludes Adobe-licensed faces, so a build may warn
 > "not embedding … (no Adobe fonts)". That is expected, not an error.
 
+### Desktop integration
+
+The GUI build installs the desktop files the upstream source already ships under
+`packaging/linux/` plus the `assets/app-icon/hicolor/` icon tree, into the standard FHS
+layout (matching the upstream `package.sh` staging):
+
+| Installs to | What |
+|---|---|
+| `share/applications/ai.storyteller.<app>.desktop` | the menu entry (`Exec=<app> %F`) |
+| `share/icons/hicolor/<size>/apps/` | the icon, all 8 sizes |
+| `share/mime/packages/ai.storyteller.<app>.xml` | DXF/DWG file associations |
+| `share/metainfo/ai.storyteller.<app>.metainfo.xml` | AppStream metadata |
+
+The metainfo template's `@VERSION@` / `@DATE@` placeholders are substituted at build time
+(`version` from the package, date from the `metaDate` param). The **CLI** variant gets no
+desktop entry — it's headless. On NixOS the desktop database and icon cache rebuild on
+switch, so the apps appear in the KDE/GNOME menu under their display names
+(**CADCraft**, **GridCraft**, **WordCraft**).
+
 ## Relationship to the upstream flake PRs
 
 Every craft app already has an open, well-structured flake PR — the canonical,
