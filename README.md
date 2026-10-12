@@ -43,10 +43,27 @@ workflow uses (see `craftFonts` in `flake.nix`).
 
 ## Relationship to the upstream flake PRs
 
-Every craft repo already has an open, well-structured flake PR by **@untypequicode**
-(cadcraft [#794], gridcraft [#757], wordcraft [#1000], pdfcraft [#1511]) — those are the
-canonical, desktop-integrated packaging (root `flake.nix` + `nix/package.nix`, overlays,
-`.desktop`/icons/AppStream, portal-aware file dialogs).
+Every craft app already has an open, well-structured flake PR — the canonical,
+desktop-integrated packaging (root `flake.nix` + `nix/package.nix`, overlays,
+`.desktop`/icons/AppStream, portal-aware file dialogs). The bulk are a consistent
+series by **@untypequicode** titled *"Add a Nix flake (NixOS, GNOME and Hyprland)"*:
+
+| App | Nix flake PR | Author |
+|---|---|---|
+| CadCraft | [#794] | @untypequicode |
+| GridCraft | [#757] | @untypequicode |
+| WordCraft | [#1000] | @untypequicode |
+| PDFCraft | [#1511] | @untypequicode |
+| DeckCraft | [#261] | @untypequicode |
+| DesignCraft | [#611] | @untypequicode |
+| EffectCraft | [#1069] | @untypequicode |
+| FilmCraft | [#1374] | @untypequicode |
+| PhotoCraft | [#4338] | @untypequicode |
+| SoundCraft | [#325] | @untypequicode |
+| VectorCraft | [#1456] | @untypequicode |
+| LightCraft | [#1211] + fix [#1314] | @dev-null-undefined + @untypequicode |
+
+> PhotoCraft also has an earlier, separate flake PR [#621] by @makemake-kbo.
 
 **This repo is complementary, not a replacement.** It fills the gaps those PRs don't expose as
 first-class packages:
@@ -115,3 +132,13 @@ built packages carry that dual license plus the embedded fonts' SIL OFL licenses
 [#757]: https://github.com/storytold/gridcraft/pull/757
 [#1000]: https://github.com/storytold/wordcraft/pull/1000
 [#1511]: https://github.com/storytold/pdfcraft/pull/1511
+[#261]: https://github.com/storytold/deckcraft/pull/261
+[#611]: https://github.com/storytold/designcraft/pull/611
+[#1069]: https://github.com/storytold/effectcraft/pull/1069
+[#1374]: https://github.com/storytold/filmcraft/pull/1374
+[#4338]: https://github.com/storytold/photocraft/pull/4338
+[#325]: https://github.com/storytold/soundcraft/pull/325
+[#1456]: https://github.com/storytold/vectorcraft/pull/1456
+[#1211]: https://github.com/storytold/lightcraft/pull/1211
+[#1314]: https://github.com/storytold/lightcraft/pull/1314
+[#621]: https://github.com/storytold/photocraft/pull/621
