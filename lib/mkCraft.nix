@@ -53,7 +53,11 @@ let
   ] ++ extraGuiBuildInputs;
 
   # Runtime libraries the wrapped binary must find (Vulkan ICD, GTK, udev, …).
+  # `wayland` is required here even though the binary isn't linked against it:
+  # winit dlopens libwayland-client.so at runtime, and without it on the path
+  # a Wayland session fails with `NoWaylandLib` (seen on gridcraft).
   runtimeLibs = [
+    pkgs.wayland
     pkgs.vulkan-loader
     pkgs.mesa
     pkgs.libxkbcommon
