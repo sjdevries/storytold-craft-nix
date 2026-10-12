@@ -102,6 +102,15 @@ and `cargoHash` pins each app's dependency tree.
   (build with a placeholder hash and read the `got:` value).
 - **Fonts:** update the `rev` in `craftFonts.<app>`.
 
+## License
+
+This packaging repo (the Nix expressions and docs) is licensed under the **MIT License** — see
+[`LICENSE`](LICENSE).
+
+The craft applications themselves are **MIT OR Apache-2.0** (dual-licensed upstream), so the
+built packages carry that dual license plus the embedded fonts' SIL OFL licenses.
+
+
 [#794]: https://github.com/storytold/cadcraft/pull/794
 [#757]: https://github.com/storytold/gridcraft/pull/757
 [#1000]: https://github.com/storytold/wordcraft/pull/1000
