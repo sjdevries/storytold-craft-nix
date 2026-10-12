@@ -27,6 +27,7 @@
 , withFonts ? false
 , craftFontsSrc ? null
 , rustFlags ? null
+, metaDate ? "2026-10-12"
 }:
 let
   inherit (pkgs) lib;
@@ -75,6 +76,26 @@ let
     done
   '';
 
+  # Desktop integration: install the source's own packaging/linux/ files + the
+  # hicolor icon tree, matching the upstream package.sh FHS staging. This is
+  # what makes the app appear in the KDE/GNOME application menu with its icon
+  # and DXF/DWG file associations. (The CLI gets no desktop entry.)
+  # The source ships these under the reverse-DNS id ai.storyteller.<app>.
+  appId = "ai.storyteller.${name}";
+  desktopIntegration = ''
+    install -Dm644 ${src}/packaging/linux/${appId}.desktop \
+      $out/share/applications/${appId}.desktop
+    install -Dm644 ${src}/packaging/linux/${appId}.mime.xml \
+      $out/share/mime/packages/${appId}.xml
+    install -Dm644 ${src}/packaging/linux/${appId}.metainfo.xml.in \
+      $out/share/metainfo/${appId}.metainfo.xml
+    substituteInPlace $out/share/metainfo/${appId}.metainfo.xml \
+      --replace '@VERSION@' '${version}' \
+      --replace '@DATE@' '${metaDate}'
+    mkdir -p $out/share/icons
+    cp -R ${src}/assets/app-icon/hicolor $out/share/icons/
+  '';
+
   baseMeta = {
     homepage = "https://github.com/storytold/${name}";
     license = with lib.licenses; [ mit asl20 ];
@@ -117,7 +138,7 @@ in
     postInstall = ''
       wrapProgram $out/bin/${name} \
         --prefix LD_LIBRARY_PATH : "${lib.makeLibraryPath runtimeLibs}"
-    '' + fontLicenseInstall;
+    '' + desktopIntegration + fontLicenseInstall;
 
     meta = baseMeta // {
       description = "${description} — desktop GUI${if withFonts then " (embedded fonts)" else ""}";
