@@ -1,0 +1,16 @@
+# Nix build output symlink
+result
+result-*
+
+# direnv / local env
+.direnv/
+
+# Local Nix cache (if pointed here)
+.nix-cache/
+
+# Rust build artifacts (shouldn't appear under Nix, but guard anyway)
+target/
+
+# Editor / OS cruft
+*.swp
+.DS_Store
