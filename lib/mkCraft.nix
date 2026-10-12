@@ -37,11 +37,11 @@ let
 
   # Common system libraries for the eframe/wgpu/winit GUI apps.
   guiBuildInputs = [
-    pkgs.xorg.libX11
-    pkgs.xorg.libXcursor
-    pkgs.xorg.libXi
-    pkgs.xorg.libXrandr
-    pkgs.xorg.libXinerama
+    pkgs.libx11
+    pkgs.libxcursor
+    pkgs.libxi
+    pkgs.libxrandr
+    pkgs.libxinerama
     pkgs.libxkbcommon
     pkgs.wayland
     pkgs.wayland-protocols
