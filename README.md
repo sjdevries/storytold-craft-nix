@@ -60,6 +60,11 @@ desktop entry — it's headless. On NixOS the desktop database and icon cache re
 switch, so the apps appear in the KDE/GNOME menu under their display names
 (**CADCraft**, **GridCraft**, **WordCraft**).
 
+> The GUI runtime closure deliberately includes `wayland` even though the binary isn't
+> linked against it — winit `dlopen`s `libwayland-client.so` at startup, and without it
+> on the path a Wayland session crashes with `NoWaylandLib`. (This bit gridcraft; the
+> other two silently fell back to X11/XWayland.)
+
 ## Relationship to the upstream flake PRs
 
 Every craft app already has an open, well-structured flake PR — the canonical,
