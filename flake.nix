@@ -3,13 +3,19 @@
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
+    # Provides pkgs.rust-bin (specific pinned rustc versions) via the overlay.
+    # Used to pin pdfcraft to rustc 1.95 (see the pdfcraft cfg below).
+    rustOverlay.url = "github:oxalica/rust-overlay";
   };
 
-  outputs = { self, nixpkgs }:
+  outputs = { self, nixpkgs, rustOverlay }:
     let
       systems = [ "x86_64-linux" "aarch64-linux" ];
       forAllSystems = f:
-        nixpkgs.lib.genAttrs systems (system: f (import nixpkgs { inherit system; }));
+        nixpkgs.lib.genAttrs systems (system: f (import nixpkgs {
+          inherit system;
+          overlays = [ rustOverlay.overlays.default ];
+        }));
 
       # Pinned app sources. The upstream craft repos have no flake.nix of their
       # own (a flake PR is open on each), so we fetch the source directly with
@@ -89,10 +95,19 @@
               src = sources.pdfcraft;
               cargoHash = "sha256-nsOkFjGd5YJk2It0jf1pRd0jPLsm5zrfOVafKnPcG3E=";
               extraGuiBuildInputs = [ ]; # no rfd
-              # KNOWN ISSUE: the OCR stack (ocrs → rten → rten-gemm 0.26.0) fails to
-              # codegen under rustc 1.98's LLVM — `llvm.x86.avx512.vpdpbusd.512`
-              # signature mismatch. rten-gemm 0.27.0 (2026-10-02) likely fixes it;
-              # needs a Cargo.lock bump upstream. The other three apps build fine.
+              # WORKAROUND (verified 2026-10-12): the OCR stack (ocrs → rten →
+              # rten-gemm 0.26.0) fails to codegen under rustc 1.98's LLVM —
+              # `llvm.x86.avx512.vpdpbusd.512` signature mismatch (the crate's
+              # old <64 x i8> args vs the new <16 x i32> the newer LLVM expects).
+              # Pinning rustc 1.95 compiles it cleanly. 1.95 is the floor that
+              # satisfies pdfcraft's own crate MSRVs (pdfcraft-* 1.95, rten 1.94,
+              # hayro-syntax 1.92) while still carrying the pre-change LLVM.
+              # Drop this override once rten-gemm 0.27.0 lands upstream + the
+              # Cargo.lock is bumped — then the default 1.98 toolchain works.
+              rustPlatform = pkgs.makeRustPlatform {
+                cargo = pkgs.rust-bin.stable."1.95.0".default;
+                rustc = pkgs.rust-bin.stable."1.95.0".default;
+              };
               description = "PDFCraft — clean-room PDF viewer/editor";
             };
           };

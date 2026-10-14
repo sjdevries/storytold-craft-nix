@@ -28,6 +28,7 @@
 , craftFontsSrc ? null
 , rustFlags ? null
 , metaDate ? "2026-10-12"
+, rustPlatform ? pkgs.rustPlatform
 }:
 let
   inherit (pkgs) lib;
@@ -108,7 +109,7 @@ let
 in
 {
   # Headless CLI — no graphics system dependencies.
-  cli = pkgs.rustPlatform.buildRustPackage {
+  cli = rustPlatform.buildRustPackage {
     pname = "${name}-cli";
     inherit version src cargoHash;
 
@@ -126,7 +127,7 @@ in
   };
 
   # Desktop GUI — eframe/wgpu/winit + file dialogs + accessibility.
-  gui = pkgs.rustPlatform.buildRustPackage {
+  gui = rustPlatform.buildRustPackage {
     pname = name;
     inherit version src cargoHash;
 
