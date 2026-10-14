@@ -125,8 +125,21 @@ The pin is applied only to the `pdfcraft` config in `flake.nix`; the other three
 default toolchain.
 
 **Clean upstream resolution:** a `Cargo.lock` bump to **rten-gemm 0.27.0** (2026-10-02) in the
-pdfcraft repo would let the default 1.98 toolchain work, at which point the pin here can be
-dropped.
+pdfcraft repo would let the default 1.98 toolchain work.
+
+**How to drop the pin** (once that bump is in a pdfcraft release):
+
+1. Update the `pdfcraft` source `rev` in `flake.nix` to one that carries `rten-gemm 0.27.0`,
+   and refresh its `cargoHash` (run `nix build .#pdfcraft` and let the hash-mismatch error
+   report the new `sha256`).
+2. Delete the `rustPlatform = pkgs.makeRustPlatform { … }` block from the `pdfcraft` config.
+   The app then falls back to the default `pkgs.rustPlatform` (1.98), which now compiles it.
+3. If no other app needs it, drop the now-unused `rustOverlay` input and the
+   `overlays = [ rustOverlay.overlays.default ]` line in `forAllSystems`, then
+   `nix flake update` to prune it from the lock.
+4. `nix build .#pdfcraft .#pdfcraft-cli` to confirm the default toolchain builds both targets.
+
+The pin is deliberately isolated to the `pdfcraft` config, so removing it touches nothing else.
 
 ### CadCraft — AutoCAD Mechanical Part Tables (BOM) are not extractable
 
