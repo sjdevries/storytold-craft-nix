@@ -103,7 +103,7 @@ and this repo stays as the variants reference. If you'd rather have the variants
 
 ## Known issues
 
-### pdfcraft — OCR stack fails to build (AVX-512 / LLVM)
+### pdfcraft — OCR stack needs a pinned rustc (AVX-512 / LLVM) — RESOLVED via pin
 
 `pdfcraft`'s OCR path (`ocrs → rten → rten-gemm 0.26.0`) fails to codegen under rustc 1.98's
 LLVM:
@@ -115,8 +115,18 @@ error: intrinsic signature mismatch for `llvm.x86.avx512.vpdpbusd.512`:
 ```
 
 The crate uses per-function `#[target_feature(enable = "avx512vnni")]`, so a lower
-`target-cpu` does **not** skip the kernel. **rten-gemm 0.27.0** (2026-10-02) likely fixes it;
-the clean resolution is a `Cargo.lock` bump upstream. The other three apps build fine.
+`target-cpu` does **not** skip the kernel.
+
+**Resolution (this flake):** pdfcraft is built with a **pinned rustc 1.95** (via `rust-bin` /
+`oxalica/rust-overlay`), which carries the pre-change LLVM and compiles the crate cleanly — both
+the GUI and CLI build and run. The viable window is **1.95 ≤ rustc < 1.98**: 1.95 is the floor
+that satisfies pdfcraft's own crate MSRVs (`pdfcraft-*` 1.95, `rten` 1.94, `hayro-syntax` 1.92).
+The pin is applied only to the `pdfcraft` config in `flake.nix`; the other three apps use the
+default toolchain.
+
+**Clean upstream resolution:** a `Cargo.lock` bump to **rten-gemm 0.27.0** (2026-10-02) in the
+pdfcraft repo would let the default 1.98 toolchain work, at which point the pin here can be
+dropped.
 
 ### CadCraft — AutoCAD Mechanical Part Tables (BOM) are not extractable
 
