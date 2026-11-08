@@ -59,6 +59,42 @@ let
     perl ${./disable-startup-update-check.pl} ${name}
   '';
 
+  # ---- Unused [patch.*] entries: REMOVED ----------------------------------
+  #
+  # Since the 2026-11-06 wave the apps pin the whole egui family to a
+  # reviewed fork via [patch.crates-io], and that block includes three
+  # crates nothing actually depends on: egui_demo_lib, egui_inspection and
+  # egui_system_font_provider. Cargo records them in Cargo.lock as
+  # [[patch.unused]] and, online, merely warns.
+  #
+  # A vendored Nix build is not online. fetch-cargo-vendor vendors only what
+  # the dependency graph needs, so those three crates are absent from the
+  # vendored egui source; the source-replacement config then redirects the
+  # fork's git URL at that incomplete directory and cargo turns the old
+  # warning into a hard failure at build time:
+  #
+  #   error: patch location `https://github.com/storytold/egui.git?rev=6d518fc...`
+  #          does not contain packages matching `egui_demo_lib`
+  #   help: check `egui_demo_lib` patch definition for
+  #         `https://github.com/rust-lang/crates.io-index` in `/build/source/Cargo.toml`
+  #
+  # The patch is unused, so dropping it changes nothing about what gets
+  # built. Verified 2026-11-08: `cargo metadata --offline` against the real
+  # vendored soundcraft tree goes exit 101 -> exit 0 with the three lines
+  # removed. Only Cargo.toml is edited; Cargo.lock is left exactly as
+  # vendored so the source-vs-vendor lock check still passes.
+  #
+  # The unused set is read from Cargo.lock rather than hardcoded, and the
+  # rewrite is verified afterwards, so a manifest that drifts breaks the
+  # build instead of leaving a broken patch in place.
+  #
+  # Runs unconditionally: unlike the update-check patch this is not a
+  # policy switch, it is what makes a vendored build of these manifests
+  # possible at all.
+  unusedPatchPatch = ''
+    perl ${./remove-unused-patches.pl} Cargo.lock Cargo.toml
+  '';
+
   # withFonts requires a source; fail clearly rather than silently building fontless.
   _ = lib.assertMsg (!withFonts || craftFontsSrc != null)
     "mkCraft: withFonts = true requires craftFontsSrc (a storytold/craft-fonts checkout)";
@@ -144,7 +180,7 @@ in
 
     nativeBuildInputs = [ pkgs.pkg-config pkgs.perl ];
     env = fontEnv // lib.optionalAttrs (rustFlags != null) { RUSTFLAGS = rustFlags; };
-    postPatch = updateCheckPatch;
+    postPatch = updateCheckPatch + unusedPatchPatch;
     postInstall = fontLicenseInstall;
 
     meta = baseMeta // {
@@ -165,8 +201,9 @@ in
     buildInputs = guiBuildInputs;
     env = fontEnv // lib.optionalAttrs (rustFlags != null) { RUSTFLAGS = rustFlags; };
 
-    # Neutralise the upstream startup update check before the build sees it.
-    postPatch = updateCheckPatch;
+    # Neutralise the upstream startup update check, then drop the unused
+    # [patch.*] entries, before the build sees either.
+    postPatch = updateCheckPatch + unusedPatchPatch;
 
     # Make the runtime find the Vulkan ICD / GTK / udev regardless of the
     # caller's environment (NixOS provides these too, but be explicit).
