@@ -29,9 +29,35 @@
 , rustFlags ? null
 , metaDate ? "2026-10-12"
 , rustPlatform ? pkgs.rustPlatform
+, disableUpdateCheck ? true
 }:
 let
   inherit (pkgs) lib;
+
+  # ---- Startup update check: DISABLED --------------------------------------
+  #
+  # Every Craft app since ~v0.16 links `craft-update` and, on desktop start,
+  # spawns an "update-check" thread that GETs api.github.com and raises an
+  # "Update and Restart" prompt. Accepting it replaces the binary OUTSIDE the
+  # Nix store — an unmanaged, unreviewed binary wearing a Nix path, which is
+  # exactly the runtime drift our pinning policy exists to prevent. Upstream
+  # offers no env-var off-switch (the only one, CRAFT_VERSIONS_FILE, belongs
+  # to the ArtCraft launcher we do not run), so the call is removed at the
+  # app's own call site.
+  #
+  # User decision 2026-11-07: "patch the startup check off in mkCraft".
+  #
+  # The patch is FAIL-LOUD: it aborts the build if it finds nothing to patch,
+  # or if an enabled form survives. A future bump that renames or adds a
+  # startup call therefore breaks visibly instead of quietly re-enabling the
+  # beacon. See lib/disable-startup-update-check.pl for the full rationale.
+  #
+  # Set `disableUpdateCheck = false` on an app ONLY if upstream genuinely
+  # removes the startup check and you have confirmed that by reading the
+  # source — never just to silence the error.
+  updateCheckPatch = lib.optionalString disableUpdateCheck ''
+    perl ${./disable-startup-update-check.pl} ${name}
+  '';
 
   # withFonts requires a source; fail clearly rather than silently building fontless.
   _ = lib.assertMsg (!withFonts || craftFontsSrc != null)
@@ -116,8 +142,9 @@ in
     cargoBuildFlags = [ "-p" "${name}-cli" ];
     doCheck = false;
 
-    nativeBuildInputs = [ pkgs.pkg-config ];
+    nativeBuildInputs = [ pkgs.pkg-config pkgs.perl ];
     env = fontEnv // lib.optionalAttrs (rustFlags != null) { RUSTFLAGS = rustFlags; };
+    postPatch = updateCheckPatch;
     postInstall = fontLicenseInstall;
 
     meta = baseMeta // {
@@ -134,9 +161,12 @@ in
     cargoBuildFlags = [ "-p" name ];
     doCheck = false;
 
-    nativeBuildInputs = [ pkgs.pkg-config pkgs.makeWrapper ];
+    nativeBuildInputs = [ pkgs.pkg-config pkgs.makeWrapper pkgs.perl ];
     buildInputs = guiBuildInputs;
     env = fontEnv // lib.optionalAttrs (rustFlags != null) { RUSTFLAGS = rustFlags; };
+
+    # Neutralise the upstream startup update check before the build sees it.
+    postPatch = updateCheckPatch;
 
     # Make the runtime find the Vulkan ICD / GTK / udev regardless of the
     # caller's environment (NixOS provides these too, but be explicit).
