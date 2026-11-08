@@ -17,75 +17,113 @@
           overlays = [ rustOverlay.overlays.default ];
         }));
 
-      # Pinned app sources. The upstream craft repos have no flake.nix of their
-      # own (a flake PR is open on each), so we fetch the source directly with
-      # builtins.fetchGit, pinned by full commit hash for reproducibility.
+      # Pinned app sources. We fetch the source directly with builtins.fetchGit,
+      # pinned by full commit hash for reproducibility.
+      #
+      # Packaging note (2026-11-07): effectcraft, designcraft and lightcraft now
+      # ship their OWN upstream flake.nix + nix/package.nix. We deliberately do
+      # NOT adopt them — user decision 2026-11-07: "keep my own flakes for now".
+      # One mkCraft codepath for all 12 apps stays simpler, and our layer carries
+      # the startup-update-check patch that upstream does not have.
+      #
+      # --- bumped 2026-11-07: whole suite to the 2026-11-06 release wave ---
       sources = {
-        # --- updated 2026-10-14: all four bumped a version ---
         cadcraft = builtins.fetchGit {
           url = "https://github.com/storytold/cadcraft";
-          rev = "fc4e98315a8d771b5ab832f0ade0b5e7b106df7f";
+          rev = "32238e83c2c8bf643994132883e94bc96961f649"; # v0.18.0
         };
         gridcraft = builtins.fetchGit {
           url = "https://github.com/storytold/gridcraft";
-          rev = "e6b6b349708ab4978cb3f061f6bd6ecbc25667cb";
+          rev = "a6a6a49a0415087474251b08e887a3581fab9e14"; # v0.17.0
         };
         wordcraft = builtins.fetchGit {
           url = "https://github.com/storytold/wordcraft";
-          rev = "fd0bb2fb1ec081e3eddc4d01917637fef0cafdfe";
+          rev = "02a802cbafe45b5c8fecc00490c8f6b78c5ba251"; # v0.16.0
         };
         pdfcraft = builtins.fetchGit {
           url = "https://github.com/storytold/pdfcraft";
-          rev = "afa8e1843cfed613f3d403119f6c2649bce824c9";
+          rev = "8c572792d6760bdc903d6f9a032e3e38e8f71cb8"; # v0.19.0
         };
-        # --- new apps added 2026-10-14: the rest of the ArtCraft suite ---
         photocraft = builtins.fetchGit {
           url = "https://github.com/storytold/photocraft";
-          rev = "df055f3dcb0bb0312af97548ee6c6f9628f21dd7";
+          rev = "efb7ebd0c0dab1fc108ee4642aa47c22694271a8"; # v0.21.0
         };
         vectorcraft = builtins.fetchGit {
           url = "https://github.com/storytold/vectorcraft";
-          rev = "b12a52f7249e0aa73f030587e05ed9ce0c73ab67";
+          rev = "654749c16eb20b6d3182a96defb66e11d1a9649a"; # v0.22.0
         };
         filmcraft = builtins.fetchGit {
           url = "https://github.com/storytold/filmcraft";
-          rev = "8309f21a6c3f34ddf190af7fd9bfd913053a1fd5";
+          rev = "015d5b3ea37e1202a529e6245d3cc021c8c16ffd"; # v0.18.0
         };
         effectcraft = builtins.fetchGit {
           url = "https://github.com/storytold/effectcraft";
-          rev = "0311bdc34d0dc10c2d18ff7875b4f52d483e5e27";
+          rev = "42e3c6a6c119d973aa59ab0437487ea6cae6a15d"; # v0.22.0
         };
         soundcraft = builtins.fetchGit {
           url = "https://github.com/storytold/soundcraft";
-          rev = "3a28a657692c1b98b28c276d8f61df9471074f0f";
+          rev = "5ff012ab88490cdfc635ee304c1019885e1b880d"; # v0.18.0
         };
         deckcraft = builtins.fetchGit {
           url = "https://github.com/storytold/deckcraft";
-          rev = "9859da39255c0262cd592bb57101d7f2fa961f72";
+          rev = "a3e2254d3de32ed1718f156f070b54a34b949b54"; # v0.16.0
         };
         designcraft = builtins.fetchGit {
           url = "https://github.com/storytold/designcraft";
-          rev = "a930276fd7462f3d9abd2fbb38544c94c0c911c8";
+          rev = "58ac6d29b260e033f4291afc4318b507cfd90fd9"; # v0.18.0
         };
         lightcraft = builtins.fetchGit {
           url = "https://github.com/storytold/lightcraft";
-          rev = "0da998f24dfc03069d49867f8877af2bf7c51f94";
+          rev = "16636c45a63bff3065a6fd31aecc22a6fc15ca53"; # v0.19.0
         };
       };
 
-      # craft-fonts is a single shared repo (one fonts/ tree: Noto CJK/Arabic/Thai,
-      # BizUD, Shippori). The rev each app's release workflow embeds; latest is
-      # 3d9ab3a1. We use one shared pin for every app (Nix dedupes the fetch).
-      # Only used when a package is built with withFonts = true.
-      craftFontsRev = "3d9ab3a132ed0eff457e424226a435a901da30d3";
-      craftFonts = nixpkgs.lib.genAttrs
-        [ "cadcraft" "gridcraft" "wordcraft" "pdfcraft"
-          "photocraft" "vectorcraft" "filmcraft" "effectcraft"
-          "soundcraft" "deckcraft" "designcraft" "lightcraft" ]
-        (_: builtins.fetchGit {
+      # craft-fonts: PER-APP pins, matching what each app's own release workflow
+      # embeds. User decision 2026-11-07: "craft-fonts per app to match upstream"
+      # — the old single shared rev (3d9ab3a1, 2026-10-11) no longer matched any
+      # upstream consumer.
+      #
+      # Source of truth, in order:
+      #   1. <app>/.github/workflows/release.yml  `craft-fonts-ref:`  (override)
+      #   2. else craft-common-actions release.yml `default:`          (suite pin)
+      # The release workflow is what produces the official artifacts, so it wins
+      # over an app's own flake where the two disagree.
+      #
+      # Known disagreement: designcraft's flake.nix pins abb83316 (2026-10-06)
+      # while its release.yml pins b076417b (2026-10-24). We follow release.yml.
+      #
+      # Nix dedupes the identical fetches, so the shared b076417b rev costs one
+      # download for the ten apps that use it.
+      #
+      # Re-verify every bump: the suite default and the per-app overrides move
+      # independently.
+      craftFontsRevs = {
+        # b076417b — 2026-10-24, explicit in each app's release.yml
+        cadcraft    = "b076417b5880bd4154bd22f00695b1d28c6bea83";
+        gridcraft   = "b076417b5880bd4154bd22f00695b1d28c6bea83";
+        wordcraft   = "b076417b5880bd4154bd22f00695b1d28c6bea83";
+        pdfcraft    = "b076417b5880bd4154bd22f00695b1d28c6bea83";
+        photocraft  = "b076417b5880bd4154bd22f00695b1d28c6bea83";
+        vectorcraft = "b076417b5880bd4154bd22f00695b1d28c6bea83";
+        filmcraft   = "b076417b5880bd4154bd22f00695b1d28c6bea83";
+        designcraft = "b076417b5880bd4154bd22f00695b1d28c6bea83";
+        lightcraft  = "b076417b5880bd4154bd22f00695b1d28c6bea83";
+
+        # bfcbf714 — 2026-10-20, the craft-common-actions suite default;
+        # these two set no per-app override, so they follow the suite pin.
+        effectcraft = "bfcbf714e45a3ea8e98f88ab2b7971372a576414";
+        soundcraft  = "bfcbf714e45a3ea8e98f88ab2b7971372a576414";
+
+        # 37827adc — 2026-10-25, deckcraft's own release.yml override.
+        deckcraft   = "37827adc41fd165f9a9234ac40f94dbad353aa69";
+      };
+
+      craftFonts = nixpkgs.lib.mapAttrs
+        (_name: rev: builtins.fetchGit {
           url = "https://github.com/storytold/craft-fonts";
-          rev = craftFontsRev;
-        });
+          inherit rev;
+        })
+        craftFontsRevs;
 
       mkCraft = import ./lib/mkCraft.nix;
     in
@@ -95,40 +133,50 @@
           craft = mkCraft { inherit pkgs; };
 
           # Base (fontless) config per app.
+          #
+          # cargoHash recomputed for all 12 apps on 2026-11-07: every Cargo.lock
+          # changed in this bump (40–191 new crates per app, ~1350 new crate
+          # instances across the suite). Re-run the wrong-hash extraction on
+          # every future bump — a stale cargoHash fails the vendor derivation,
+          # it does not silently pass.
           apps = {
-            # --- updated 2026-10-14: all four bumped a version ---
             cadcraft = {
-              version = "0.7.0";
+              version = "0.18.0";
               src = sources.cadcraft;
-              cargoHash = "sha256-7/TxuM5jh6fncL0+pAT147GJuri/sD0xnN6lRxueD0E=";
+              cargoHash = "sha256-WVRERkYps/v1SQTYVBrHrk1rRzBGDBnMPUl6lUjBjOs=";
               extraGuiBuildInputs = [ pkgs.gtk3 pkgs.systemd ]; # rfd + hidapi
               description = "CadCraft — clean-room AutoCAD";
             };
             gridcraft = {
-              version = "0.7.0";
+              version = "0.17.0";
               src = sources.gridcraft;
-              cargoHash = "sha256-9PJmE7dLeDIEsnczga1WfWaad1e0YLLh04rJcSyzGwE=";
+              cargoHash = "sha256-Mb3HBd3fquTqMYkJ6m+j/+V7Yx5zg2a2LU3b98QEab4=";
               extraGuiBuildInputs = [ pkgs.gtk3 ]; # rfd
               description = "GridCraft — clean-room spreadsheet";
             };
             wordcraft = {
-              version = "0.7.0";
+              version = "0.16.0";
               src = sources.wordcraft;
-              cargoHash = "sha256-Hc/+C2hh4vuBxPr2a8b5R94Fwy3Md5asmIDaG4pcHTc=";
+              cargoHash = "sha256-LsoTa1dUflP/Q2XKDUsEtk/kRdtgWyO87dXL2rPZEaI=";
               extraGuiBuildInputs = [ pkgs.gtk3 ]; # rfd
               description = "WordCraft — clean-room word processor";
             };
             pdfcraft = {
-              version = "0.8.0";
+              version = "0.19.0";
               src = sources.pdfcraft;
-              cargoHash = "sha256-PoXZ0+0Dlf3YBeDTuGsqla9w15I2ToJw1PyxIluu81s=";
+              cargoHash = "sha256-VHPrDEntypGEyeCg1VcIlZ6NRQQw+kXAn+bXJZvnMmI=";
               extraGuiBuildInputs = [ ]; # no rfd
-              # WORKAROUND (still required for 0.8.0, re-verified 2026-10-14):
-              # the OCR stack (ocrs → rten → rten-gemm 0.26.0) fails to codegen
+              # WORKAROUND — STILL REQUIRED at 0.19.0 (re-verified 2026-11-07).
+              # The OCR stack (ocrs → rten → rten-gemm 0.26.0) fails to codegen
               # under rustc 1.98's LLVM — `llvm.x86.avx512.vpdpbusd.512`
-              # signature mismatch. Pin rustc 1.95, which is exactly pdfcraft
-              # 0.8.0's own workspace MSRV and still carries the pre-change LLVM.
-              # Drop once rten-gemm 0.27.0 lands upstream + Cargo.lock bumps.
+              # signature mismatch. Pin rustc 1.95, which is exactly pdfcraft's
+              # own workspace MSRV (Cargo.toml `rust-version = "1.95"`) and still
+              # carries the pre-change LLVM.
+              #
+              # Re-checked at v0.19.0: Cargo.lock still has rten 0.26.0 and
+              # rten-gemm 0.26.0, so the drop condition is NOT met.
+              # Drop only once upstream bumps rten-gemm off 0.26.0.
+              # User decision 2026-11-07: keep the 1.95 pin.
               rustPlatform = pkgs.makeRustPlatform {
                 cargo = pkgs.rust-bin.stable."1.95.0".default;
                 rustc = pkgs.rust-bin.stable."1.95.0".default;
@@ -137,58 +185,58 @@
             };
             # --- new apps added 2026-10-14: the rest of the ArtCraft suite ---
             photocraft = {
-              version = "0.9.0";
+              version = "0.21.0";
               src = sources.photocraft;
-              cargoHash = "sha256-w+u3fMZoZj4tiLZee9R0ZOG9cEv+7vV2GpDj6gZ96T4=";
+              cargoHash = "sha256-u6hM6QTbRwbiuc24hGiQRv2Wsh70Wg07yZM1IQGVyUs=";
               extraGuiBuildInputs = [ pkgs.gtk3 ]; # rfd
               description = "PhotoCraft — clean-room Photoshop-style image editor";
             };
             vectorcraft = {
-              version = "0.11.0";
+              version = "0.22.0";
               src = sources.vectorcraft;
-              cargoHash = "sha256-uJukhS4PxMGHgwpDK4pVWc45qvpMuBPFbANi7UrOAKo=";
+              cargoHash = "sha256-wXaN0TDkhMT6SgOH5HO1NSVsvB3vT1bghEomOF3BYkc=";
               extraGuiBuildInputs = [ pkgs.gtk3 ]; # rfd
               description = "VectorCraft — clean-room Illustrator-style vector editor";
             };
             filmcraft = {
-              version = "0.8.0";
+              version = "0.18.0";
               src = sources.filmcraft;
-              cargoHash = "sha256-xjyTr6HPvaO6tndE+1Icgs6HCx96I5a2zQfAYpqPE7U=";
+              cargoHash = "sha256-mQqu82vQiXpI0643hF3ZQ9HbZ0qNlDeMN9Q9LG++8lk=";
               extraGuiBuildInputs = [ pkgs.gtk3 pkgs.alsa-lib ]; # rfd
               description = "FilmCraft — clean-room Premiere-style video editor";
             };
             effectcraft = {
-              version = "0.10.0";
+              version = "0.22.0";
               src = sources.effectcraft;
-              cargoHash = "sha256-Ag4H+W8IPcgTXi/GAYpeDV2qGBYr7sth2uD+QwckTek=";
+              cargoHash = "sha256-y2dt8DhUWQ+l2k8P3V7VZqdCbzY7C5jja5RVBq6oz54=";
               extraGuiBuildInputs = [ pkgs.gtk3 pkgs.alsa-lib ]; # rfd
               description = "EffectCraft — clean-room After Effects-style motion graphics";
             };
             soundcraft = {
-              version = "0.7.0";
+              version = "0.18.0";
               src = sources.soundcraft;
-              cargoHash = "sha256-E6TBJJMjLX2D5DvzSdy5HPxhSq2IG+rz2VtD2wkN+dQ=";
+              cargoHash = "sha256-ExKqLiUi8EeqJyvftaNwpdx/oYuQ/nnVqefXBC9jVCM=";
               extraGuiBuildInputs = [ pkgs.gtk3 pkgs.alsa-lib ]; # rfd
               description = "SoundCraft — clean-room Pro Tools-style audio workstation";
             };
             deckcraft = {
-              version = "0.7.0";
+              version = "0.16.0";
               src = sources.deckcraft;
-              cargoHash = "sha256-Ba2jD5qyRZKHz8Lf9LMstNg5iGeumytchZBPycVVwv0=";
+              cargoHash = "sha256-uoKVa3SVGaWAoJ5o3VL+FI9d843OJyR2x0NnGx9azC0=";
               extraGuiBuildInputs = [ pkgs.gtk3 pkgs.alsa-lib ]; # rfd
               description = "DeckCraft — clean-room PowerPoint-style presentations";
             };
             designcraft = {
-              version = "0.8.0";
+              version = "0.18.0";
               src = sources.designcraft;
-              cargoHash = "sha256-8OMM2snZMshErMH8zvix3mEYnBe+qTAQ1O+pCVANnDw=";
+              cargoHash = "sha256-jLb9jIh3P8u1mcJG8jXJbnbfkGf3B4SctYEXgJqPU/Q=";
               extraGuiBuildInputs = [ pkgs.gtk3 ]; # rfd
               description = "DesignCraft — clean-room InDesign-style page layout";
             };
             lightcraft = {
-              version = "0.8.0";
+              version = "0.19.0";
               src = sources.lightcraft;
-              cargoHash = "sha256-HVnm2Ziy2WB8y3eLWEU/oXS36bvWI6zuDlTJ0BPfOtE=";
+              cargoHash = "sha256-QRYnnaffvzVa82QH6ucBfTWW9tyc8PBD2cQCaplw0MA=";
               extraGuiBuildInputs = [ pkgs.gtk3 ]; # rfd
               description = "LightCraft — clean-room Lightroom-style photo library";
             };
