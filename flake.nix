@@ -142,8 +142,8 @@
 
           # ---- cargo >= 1.99 required by craft-libs @ 92d392cf --------------
           #
-          # cadcraft, designcraft and effectcraft all pin craft-libs 92d392cf,
-          # whose crates/menu/Cargo.toml declares
+          # Four apps pull craft-libs 92d392cf, whose crates/menu/Cargo.toml
+          # declares
           #
           #   craft-keymap = { workspace = true, default-features = false,
           #                  features = [ "egui" ] }
@@ -161,16 +161,33 @@
           # — craft-docpath exists fine upstream at crates/docpath; it was
           # never indexed because the metadata call that indexes it failed.
           #
-          # Cargo 1.99 accepts the manifest, so these three build against
+          # Cargo 1.99 accepts the manifest, so the affected apps build against
           # rust-bin 1.99. Verified 2026-11-08 by realising just the vendor
-          # derivations: all three build, and the existing cargoHash is still
+          # derivations: they build, and the existing cargoHash is still
           # accepted — the toolchain bump does not change the vendored output,
           # so no hash recompute is needed.
           #
           # NOTE this is a VENDORING floor, not an MSRV issue: the apps'
           # declared rust-version (1.95) was never the problem.
           #
-          # Drop all three overrides once craft-nix's own nixpkgs provides
+          # ⚠ HOW TO RE-DERIVE THE AFFECTED SET ON A FUTURE BUMP.
+          # Do NOT look at one craft-libs rev per app. Each app's Cargo.lock
+          # carries SEVERAL craft-libs revs (wordcraft has six), so reading
+          # the first match says the wrong thing — that is exactly how
+          # wordcraft was missed the first time: its first-listed rev is
+          # 762a06a4, but it also pulls 92d392cf transitively.
+          #
+          # Correct procedure: collect the FULL set of craft-libs revs per
+          # app, then mark an app affected if ANY of its revs is 92d392cf
+          # (or any other rev whose crates/menu/Cargo.toml overrides
+          # default-features over a root that omits it).
+          #
+          # As of this bump exactly one rev is bad (92d392cf) and it reaches
+          # four apps: cadcraft, designcraft, effectcraft, wordcraft. The
+          # other eight apps' vendors build fine on 1.98 — confirmed by real
+          # builds, not by inspection.
+          #
+          # Drop all four overrides once craft-nix's own nixpkgs provides
           # cargo >= 1.99 (our current lock, 8edc0c72, gives 1.98.1).
           rust199 = pkgs.makeRustPlatform {
             cargo = pkgs.rust-bin.stable."1.99.0".default;
@@ -198,6 +215,7 @@
               src = sources.wordcraft;
               cargoHash = "sha256-LsoTa1dUflP/Q2XKDUsEtk/kRdtgWyO87dXL2rPZEaI=";
               extraGuiBuildInputs = [ pkgs.gtk3 ]; # rfd
+              rustPlatform = rust199; # pulls craft-libs 92d392cf transitively
               description = "WordCraft — clean-room word processor";
             };
             pdfcraft = {
