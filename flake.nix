@@ -139,12 +139,51 @@
           # instances across the suite). Re-run the wrong-hash extraction on
           # every future bump — a stale cargoHash fails the vendor derivation,
           # it does not silently pass.
+
+          # ---- cargo >= 1.99 required by craft-libs @ 92d392cf --------------
+          #
+          # cadcraft, designcraft and effectcraft all pin craft-libs 92d392cf,
+          # whose crates/menu/Cargo.toml declares
+          #
+          #   craft-keymap = { workspace = true, default-features = false,
+          #                  features = [ "egui" ] }
+          #
+          # over a workspace root that gives `craft-keymap = { path =
+          # "crates/keymap" }` with no default-features. Cargo 1.98 rejects
+          # that override ("`default-features = false` cannot override
+          # workspace's `default-features`"), so `cargo metadata` fails for
+          # EVERY crate in that workspace. fetch-cargo-vendor-util then skips
+          # them all and dies later with the misleading
+          #
+          #   Exception: Couldn't find manifest for crate craft-docpath
+          #              inside .../git/92d392cf...
+          #
+          # — craft-docpath exists fine upstream at crates/docpath; it was
+          # never indexed because the metadata call that indexes it failed.
+          #
+          # Cargo 1.99 accepts the manifest, so these three build against
+          # rust-bin 1.99. Verified 2026-11-08 by realising just the vendor
+          # derivations: all three build, and the existing cargoHash is still
+          # accepted — the toolchain bump does not change the vendored output,
+          # so no hash recompute is needed.
+          #
+          # NOTE this is a VENDORING floor, not an MSRV issue: the apps'
+          # declared rust-version (1.95) was never the problem.
+          #
+          # Drop all three overrides once craft-nix's own nixpkgs provides
+          # cargo >= 1.99 (our current lock, 8edc0c72, gives 1.98.1).
+          rust199 = pkgs.makeRustPlatform {
+            cargo = pkgs.rust-bin.stable."1.99.0".default;
+            rustc = pkgs.rust-bin.stable."1.99.0".default;
+          };
+
           apps = {
             cadcraft = {
               version = "0.18.0";
               src = sources.cadcraft;
               cargoHash = "sha256-WVRERkYps/v1SQTYVBrHrk1rRzBGDBnMPUl6lUjBjOs=";
               extraGuiBuildInputs = [ pkgs.gtk3 pkgs.systemd ]; # rfd + hidapi
+              rustPlatform = rust199; # craft-libs 92d392cf needs cargo >= 1.99
               description = "CadCraft — clean-room AutoCAD";
             };
             gridcraft = {
@@ -210,6 +249,7 @@
               src = sources.effectcraft;
               cargoHash = "sha256-y2dt8DhUWQ+l2k8P3V7VZqdCbzY7C5jja5RVBq6oz54=";
               extraGuiBuildInputs = [ pkgs.gtk3 pkgs.alsa-lib ]; # rfd
+              rustPlatform = rust199; # craft-libs 92d392cf needs cargo >= 1.99
               description = "EffectCraft — clean-room After Effects-style motion graphics";
             };
             soundcraft = {
@@ -231,6 +271,7 @@
               src = sources.designcraft;
               cargoHash = "sha256-jLb9jIh3P8u1mcJG8jXJbnbfkGf3B4SctYEXgJqPU/Q=";
               extraGuiBuildInputs = [ pkgs.gtk3 ]; # rfd
+              rustPlatform = rust199; # craft-libs 92d392cf needs cargo >= 1.99
               description = "DesignCraft — clean-room InDesign-style page layout";
             };
             lightcraft = {
